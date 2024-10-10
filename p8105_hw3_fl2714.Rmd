@@ -4,11 +4,16 @@ author: "Fangchi"
 date: "2024-10-10"
 output: github_document
 ---
+
 ```{r}
+
 library(tidyverse)
 library(readxl)
 library(janitor)
 library(lubridate)
+library(knitr)
+library(dplyr)
+
 ```
 
 ## Problem 2 - NHANES Accelerometer Data
@@ -25,6 +30,7 @@ accelerometer_df <-
   janitor::clean_names()
 
 ```
+
 ```{r}
 
 # Join the demographic and accelerometer datasets by participant ID
@@ -33,7 +39,6 @@ final_data <-
   drop_na()
 
 ```
-
 
 ```{r}
 
@@ -58,6 +63,9 @@ education_sex_table <- final_data %>%
 knitr::kable(education_sex_table, caption = "Number of Men and Women in Each Education Category")
 
 ```
+
+
+
 ```{r}
 
 # Plot age distribution by sex and education level
@@ -70,6 +78,14 @@ ggplot(final_data, aes(x = age, fill = sex)) +
   theme_minimal()
 
 ```
+### Observations
+
+- **Age Distribution**: Age distributions vary across education levels, with a higher concentration of younger participants in the **College** group and older participants in the **Less than High School** and **High School** groups.
+- **Sex Differences**: For **College**-educated individuals, there is a slight female predominance across most age ranges, while the **Less than High School** and **High School** groups show a more balanced or slightly male-dominant distribution.
+- **Peak Ages**: The **College** group has a noticeable peak in the 20–30 age range, reflecting a younger demographic, whereas **Less than High School** and **High School** groups have peaks around 60 years, indicating an older demographic for those with lower education levels.
+
+
+
 ```{r}
 
 # Calculate total daily activity for each participant
@@ -87,6 +103,14 @@ ggplot(final_data, aes(x = age, y = total_activity, color = sex)) +
   theme_minimal()
 
 ```
+
+### Observations
+
+- **Age and Total Activity**: Total activity levels vary by age, with a tendency to decrease among older participants.
+- **Sex Differences**: Men generally show slightly higher activity levels than women across most age groups.
+- **Education Levels**: The patterns of activity by age are similar across education levels, though college-educated participants show slightly higher activity overall, possibly reflecting lifestyle differences.
+- **Trend**: The smooth trend line illustrates a gradual decline in activity with age for both men and women.
+
 ```{r}
 
 # Reshape to long format for minute-by-minute activity
@@ -108,13 +132,20 @@ ggplot(activity_long, aes(x = minute, y = activity, color = sex)) +
   theme_minimal()
 
 ```
+
+### Observations
+
+- **Daily Activity Peaks**: All show two main peaks in activity — one in the morning around 8 AM and another in the evening around 6 PM.
+
+- **Differences by Education Level**:  
+  - **Less than High School** and **College** groups have a more pronounced morning peak than the **High School** group. The **College** group maintains slightly higher activity levels throughout the day, while the **Less than High School** and **High School** groups have lower midday activity.
+
+- **Sex Differences**:  
+  - Across all education levels, women show slightly higher morning activity peaks than men.
+
 ## Problem 3 - Citi Bike
 
 ```{r}
-
-library(tidyverse)
-library(janitor)
-library(lubridate)
 
 Jan_2020_df <- read_csv("data/citibike/Jan 2020 Citi.csv", show_col_types = FALSE) %>%
   janitor::clean_names() %>%
@@ -142,10 +173,37 @@ ride_summary <- all_months_df %>%
   pivot_wider(names_from = member_casual, values_from = total_rides, values_fill = 0)
 
 # view results
-library(knitr)
 kable(ride_summary, caption = "Total Number of Rides by Year, Month, and Rider Type (Casual and Member)")
 
 ```
+
+### Observations
+
+- **Increase in Total Rides**:  
+  Both **casual** and **member** rides increased significantly from 2020 to 2024.
+
+- **Seasonal Variation**:  
+  For both years, **July** has a much higher ride count than **January**. 
+
+- **Casual vs. Member Rides**:  
+  - **Members** consistently have higher ride counts than casual users in each month and year. The number of rides from memeber continuously increased.
+  - The increase in casual rides from **January** to **July** is more pronounced, which suggests that casual users may be more motivated by leisure or seasonal factors, while members have a relatively stable and predictable usage pattern.
+
+```{r}
+top_stations_jul2024 <- Jul_2024_df %>%
+  group_by(start_station_name) %>%
+  summarise(total_rides = n(), .groups = 'drop') %>%
+  arrange(desc(total_rides)) %>%
+  slice_head(n = 5)  
+
+kable(top_stations_jul2024, 
+      col.names = c("Starting Station", "Number of Rides"), 
+      caption = "Top 5 Most Popular Starting Stations in July 2024")
+```
+
+
+
+
 ```{r}
 
 median_duration_df <- all_months_df %>%
@@ -162,8 +220,52 @@ ggplot(median_duration_df, aes(x = weekdays, y = median_duration, color = factor
   theme_minimal() +
   theme(
     legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1)  # 旋转x轴的标签45度
+    axis.text.x = element_text(angle = 45, hjust = 1)  
   )
 
 ```
+
+### Observations
+
+- **Seasonal Variation**:  
+  Ride durations are generally higher in **July** than in **January** for both 2020 and 2024, likely due to increased recreational use during summer.
+
+- **Yearly Differences**:  
+  In 2020, **July** shows a sharp peak in ride duration on weekends, exceeding 15 minutes. In 2024, weekend durations are still higher but less pronounced, suggesting a shift towards shorter trips.
+
+- **Weekday Patterns**:  
+  Weekdays consistently show shorter ride durations, likely reflecting commuter usage, while weekends have longer durations, indicating more recreational rides.
+
+```{r}
+
+data_2024 <- all_months_df %>%
+  filter(year == 2024)
+
+ggplot(data_2024, aes(x = member_casual, y = duration, fill = rideable_type)) +
+  geom_violin(alpha = 0.7) +
+  facet_wrap(~ month, ncol = 2) +
+  scale_y_continuous(limits = c(0, quantile(data_2024$duration, 0.95)),  
+                     name = "Ride Duration (Minutes)") +
+  labs(
+    title = "Distribution of Ride Duration by Membership, Bike Type, and Month (2024)",
+    x = "Membership Status",
+    fill = "Bike Type"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
+
+```
+### Observations
+
+- **Electric vs. Classic Bikes**:  
+  Electric bikes tend to have shorter ride durations than classic bikes, likely due to faster speeds allowing quicker trips.
+
+- **Membership Differences**:  
+  Casual riders show longer ride durations, especially on classic bikes, indicating more recreational use. Members generally have shorter, more consistent durations, suggesting commuting use.
+
+- **Seasonal Variation**:  
+  In **July**, ride durations are longer for both casual and member users, reflecting increased recreational use in warmer months.
 
